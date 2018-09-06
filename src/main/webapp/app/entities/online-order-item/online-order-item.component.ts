@@ -1,3 +1,4 @@
+import { OnlineOrderItem } from './../../shared/model/online-order-item.model';
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { HttpErrorResponse, HttpResponse } from '@angular/common/http';
 import { Subscription } from 'rxjs';
@@ -7,7 +8,7 @@ import { IOnlineOrderItem } from 'app/shared/model/online-order-item.model';
 import { Principal } from 'app/core';
 import { OnlineOrderItemService } from './online-order-item.service';
 import { LocalDataSource } from 'ng2-smart-table';
-import { Router } from '@angular/router';
+import { Router, ActivatedRoute } from '@angular/router';
 
 
 @Component({
@@ -18,6 +19,8 @@ export class OnlineOrderItemComponent implements OnInit, OnDestroy {
     onlineOrderItems: IOnlineOrderItem[];
     currentAccount: any;
     eventSubscriber: Subscription;
+    id: number;
+    private sub: any;  
 
     settings = {
         mode: 'external',
@@ -68,7 +71,8 @@ export class OnlineOrderItemComponent implements OnInit, OnDestroy {
         private jhiAlertService: JhiAlertService,
         private eventManager: JhiEventManager,
         private principal: Principal,
-        private router: Router 
+        private router: Router,
+        private route: ActivatedRoute
     ) {}
 
     loadAll() {
@@ -76,19 +80,24 @@ export class OnlineOrderItemComponent implements OnInit, OnDestroy {
             (res: HttpResponse<IOnlineOrderItem[]>) => {
                 this.onlineOrderItems = res.body;
                 this.data = new LocalDataSource();
-                for (const onlineOrderItem of res.body) {
-                    onlineOrderItem.articleName = onlineOrderItem.article.name;
-                    onlineOrderItem.articlePrice = onlineOrderItem.article.price;
-                    onlineOrderItem.itemPrice = onlineOrderItem.article.price * onlineOrderItem.orderedAmount;
-                    this.data.add(onlineOrderItem);
-                }
+                    for (const onlineOrderItem of res.body) {
+                        if (onlineOrderItem.onlineOrder.id == this.id){
+                        onlineOrderItem.articleName = onlineOrderItem.article.name;
+                        onlineOrderItem.articlePrice = onlineOrderItem.article.price;
+                        onlineOrderItem.itemPrice = onlineOrderItem.article.price * onlineOrderItem.orderedAmount;
+                        this.data.add(onlineOrderItem);
+                        }
+                    }
             },
             (res: HttpErrorResponse) => this.onError(res.message)
         );
     }
 
     ngOnInit() {
-        this.loadAll();
+        this.sub = this.route.params.subscribe(params =>{
+            this.id = +params['id']});
+            console.log('ID je ovde ' + this.id);
+            this.loadAll();
         this.principal.identity().then(account => {
             this.currentAccount = account;
         });
@@ -97,6 +106,7 @@ export class OnlineOrderItemComponent implements OnInit, OnDestroy {
 
     ngOnDestroy() {
         this.eventManager.destroy(this.eventSubscriber);
+        this.sub.unsubscribe();
     }
 
     trackId(index: number, item: IOnlineOrderItem) {
